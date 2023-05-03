@@ -365,3 +365,44 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         _, bestAction = expectimax(gameState, 0, self.depth, -float('inf'), float('inf'))  # Use alpha-beta pruning
 
         return bestAction
+
+def betterEvaluationFunction(currentGameState: GameState):
+    score = currentGameState.getScore()
+    pacman_position = currentGameState.getPacmanPosition()
+    food_list = currentGameState.getFood().asList()
+    remaining_food = len(food_list)
+    ghosts = currentGameState.getGhostStates()
+    scared_ghosts = sum([1 for ghost in ghosts if ghost.scaredTimer > 0])
+
+    food_distances = [manhattanDistance(pacman_position, food) for food in food_list]
+    closest_food_distance = min(food_distances) if food_distances else 0
+
+    power_pellet_list = currentGameState.getCapsules()
+    power_pellet_distances = [manhattanDistance(pacman_position, pellet) for pellet in power_pellet_list]
+    closest_power_pellet_distance = min(power_pellet_distances) if power_pellet_distances else 0
+
+    scared_ghost_states = [ghost for ghost in ghosts if ghost.scaredTimer > 0]
+    non_scared_ghost_states = [ghost for ghost in ghosts if ghost.scaredTimer == 0]
+
+    non_scared_ghost_distances = [manhattanDistance(pacman_position, ghost.getPosition()) for ghost in non_scared_ghost_states]
+    closest_non_scared_ghost_distance = min(non_scared_ghost_distances) if non_scared_ghost_distances else 0
+
+    # Updated weights for each factor
+    score_weight = 1.0
+    closest_food_weight = 2.0
+    remaining_food_weight = -50.0
+    closest_power_pellet_weight = 15.0
+    scared_ghosts_weight = 150.0
+    closest_non_scared_ghost_weight = -100.0
+
+    evaluation = (score_weight * score +
+                  closest_food_weight / (closest_food_distance + 1) +
+                  remaining_food_weight * remaining_food +
+                  closest_power_pellet_weight / (closest_power_pellet_distance + 1) +
+                  scared_ghosts_weight * scared_ghosts +
+                  closest_non_scared_ghost_weight / (closest_non_scared_ghost_distance + 1))      
+    
+    return evaluation
+
+# Abbreviation
+better = betterEvaluationFunction
