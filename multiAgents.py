@@ -249,3 +249,77 @@ class MinimaxAgent(MultiAgentSearchAgent):
         bestScore = max(scores)
         bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
         return actions[random.choice(bestIndices)]
+    
+class AlphaBetaAgent(MultiAgentSearchAgent):
+    """
+    Your minimax agent with alpha-beta pruning (question 3)
+    """
+
+    def getAction(self, gameState: GameState):
+        """
+        Returns the minimax action using self.depth and self.evaluationFunction
+        with alpha-beta pruning (cuts off branch if alpha >= beta).
+
+        Here are some method calls that might be useful when implementing minimax.
+
+        gameState.getLegalActions(agentIndex):
+        Returns a list of legal actions for an agent
+        agentIndex=0 means Pacman, ghosts are >= 1
+
+        gameState.generateSuccessor(agentIndex, action):
+        Returns the successor game state after an agent takes an action
+
+        gameState.getNumAgents():
+        Returns the total number of agents in the game
+
+        gameState.isWin():
+        Returns whether or not the game state is a winning state
+
+        gameState.isLose():
+        Returns whether or not the game state is a losing state
+        """
+        actions = gameState.getLegalActions(0)
+        if not actions:
+            return None
+        def alpha_beta_prune(gameState, agentIndex, depth, alpha, beta):
+            if gameState.isWin() or gameState.isLose() or depth == 0:
+                return self.evaluationFunction(gameState)
+
+            numAgents = gameState.getNumAgents()
+            nextAgent = (agentIndex + 1) % numAgents
+
+            # Pacman's turn (maximizing agent)
+            if agentIndex == 0:
+                value = -float('inf')
+                for action in gameState.getLegalActions(agentIndex):
+                    nextState = gameState.generateSuccessor(agentIndex, action)
+                    value = max(value, alpha_beta_prune(nextState, nextAgent, depth, alpha, beta))
+                    alpha = max(alpha, value)
+                    if alpha >= beta:
+                        break
+                return value
+            # Ghost's turn (minimizing agent)
+            else:
+                value = float('inf')
+                if nextAgent == 0:
+                    depth -= 1
+                for action in gameState.getLegalActions(agentIndex):
+                    nextState = gameState.generateSuccessor(agentIndex, action)
+                    value = min(value, alpha_beta_prune(nextState, nextAgent, depth, alpha, beta))
+                    beta = min(beta, value)
+                    if alpha >= beta:
+                        break
+                return value
+
+        alpha = -float('inf')
+        beta = float('inf')
+        bestValue = -float('inf')
+        bestAction = actions[0]
+        for action in gameState.getLegalActions(0):
+            nextState = gameState.generateSuccessor(0, action)
+            currentValue = alpha_beta_prune(nextState, 1, self.depth, alpha, beta)
+            if currentValue > bestValue:
+                bestValue = currentValue
+                bestAction = action
+            alpha = max(alpha, bestValue)
+        return bestAction
