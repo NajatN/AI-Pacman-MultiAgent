@@ -141,3 +141,52 @@ class ReflexAgent(Agent):
 
         return score
 
+def scoreEvaluationFunction(currentGameState: GameState):
+    """
+    This default evaluation function just returns the score of the state.
+    The score is the same one displayed in the Pacman GUI.
+
+    This evaluation function is meant for use with adversarial search agents
+    (not reflex agents).
+    """
+    if currentGameState.isWin():
+        return float('inf')
+
+    if currentGameState.isLose():
+        return -float('inf')
+
+    foodList = currentGameState.getFood().asList()
+    ghostStates = currentGameState.getGhostStates()
+
+    score = currentGameState.getScore()
+
+    # Encourage getting food by adding the reciprocal of the closest food distance to the score
+    closestFoodDist = min([util.manhattanDistance(currentGameState.getPacmanPosition(), food) for food in foodList])
+    score += 1 / closestFoodDist
+
+    # Encourage getting away from ghosts by subtracting the reciprocal of the closest ghost distance from the score
+    closestGhostDist = min([util.manhattanDistance(currentGameState.getPacmanPosition(), ghost.getPosition()) for ghost in ghostStates])
+    score -= 1 / closestGhostDist
+
+    return score
+
+class MultiAgentSearchAgent(Agent):
+    """
+    This class provides some common elements to all of your
+    multi-agent searchers.  Any methods defined here will be available
+    to the MinimaxPacmanAgent, AlphaBetaPacmanAgent & ExpectimaxPacmanAgent.
+
+    You *do not* need to make any changes here, but you can if you want to
+    add functionality to all your adversarial search agents.  Please do not
+    remove anything, however.
+
+    Note: this is an abstract class: one that should not be instantiated.  It's
+    only partially specified, and designed to be extended.  Agent (game.py)
+    is another abstract class.
+    """
+
+    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
+        self.index = 0 # Pacman is always agent index 0
+        self.evaluationFunction = util.lookup(evalFn, globals())
+        self.depth = int(depth)
+
