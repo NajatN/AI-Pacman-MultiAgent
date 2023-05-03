@@ -190,3 +190,62 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
+class MinimaxAgent(MultiAgentSearchAgent):
+    """
+    Your minimax agent (question 2)
+    """
+
+    def getAction(self, gameState: GameState):
+        """
+        Returns the minimax action from the current gameState using self.depth
+        and self.evaluationFunction.
+
+        Here are some method calls that might be useful when implementing minimax.
+
+        gameState.getLegalActions(agentIndex):
+        Returns a list of legal actions for an agent
+        agentIndex=0 means Pacman, ghosts are >= 1
+
+        gameState.generateSuccessor(agentIndex, action):
+        Returns the successor game state after an agent takes an action
+
+        gameState.getNumAgents():
+        Returns the total number of agents in the game
+
+        gameState.isWin():
+        Returns whether or not the game state is a winning state
+
+        gameState.isLose():
+        Returns whether or not the game state is a losing state
+        """
+        "*** YOUR CODE HERE ***"
+        def minimax(state, agentIndex, depth):
+            stack = [(state, agentIndex, depth)]
+            maxEval = -float('inf')
+            while stack:
+                state, agentIndex, depth = stack.pop()
+                if depth == 0 or state.isWin() or state.isLose():
+                    eval = self.evaluationFunction(state)
+                    maxEval = max(maxEval, eval)
+                else:
+                    actions = state.getLegalActions(agentIndex)
+                    nextAgent = (agentIndex + 1) % state.getNumAgents()
+                    if agentIndex == 0:  # Pacman's turn (maximizing agent)
+                        for action in actions:
+                            successor = state.generateSuccessor(agentIndex, action)
+                            stack.append((successor, nextAgent, depth))  # add successor to stack
+                    else:  # Ghost's turn (minimizing agent)
+                        minEval = float('inf')
+                        for action in actions:
+                            successor = state.generateSuccessor(agentIndex, action)
+                            eval = minimax(successor, nextAgent, depth - 1)  # recursive call
+                            minEval = min(minEval, eval)
+                        maxEval = max(maxEval, minEval)
+            return maxEval
+
+        # Call minimax for Pacman to get the best action
+        actions = gameState.getLegalActions(0)
+        scores = [minimax(gameState.generateSuccessor(0, action), 1, self.depth) for action in actions]
+        bestScore = max(scores)
+        bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
+        return actions[random.choice(bestIndices)]
