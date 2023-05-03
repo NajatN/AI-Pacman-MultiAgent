@@ -406,3 +406,134 @@ def betterEvaluationFunction(currentGameState: GameState):
 
 # Abbreviation
 better = betterEvaluationFunction
+
+class CustomPacmanAgent(Agent):
+    def __init__(self):
+        self.visited_positions = set()
+        self.last_remaining_food = None
+
+    def evaluationFunction(self, currentGameState):
+        if currentGameState.isWin():
+            return float('inf')
+
+        if currentGameState.isLose():
+            return -float('inf')
+
+        score = currentGameState.getScore()
+        pacman_position = currentGameState.getPacmanPosition()
+        food_list = currentGameState.getFood().asList()
+        ghost_states = currentGameState.getGhostStates()
+        capsules = currentGameState.getCapsules()
+
+        # Increase the score for the remaining food pellets
+        if self.last_remaining_food is not None:
+            score += 10.0 * (self.last_remaining_food - len(food_list))
+
+        # Update the last_remaining_food variable
+        self.last_remaining_food = len(food_list)
+
+        # Sum of Manhattan distances to all remaining food pellets
+        sum_food_distances = sum([manhattanDistance(pacman_position, food) for food in food_list])
+        score -= 0.5 * sum_food_distances
+
+        # Consider the distance to the closest capsule
+        if capsules:
+            min_capsule_distance = min([manhattanDistance(pacman_position, capsule) for capsule in capsules])
+            score += 10.0 / min_capsule_distance  # Increased weight for capsules
+
+        # Consider the distance to the ghosts and modify the score accordingly
+        for ghost_state in ghost_states:
+            ghost_distance = manhattanDistance(pacman_position, ghost_state.getPosition())
+            if ghost_state.scaredTimer > 0:
+                score += 25.0 / ghost_distance  # Increased weight for scared ghosts
+            else:
+                score -= 150 / (1 + ghost_distance ** 2)  # Updated to improve ghost distance evaluation
+
+        return score
+
+    def newHeuristic(self, pacman_position, food_list, ghost_states, capsules):
+        # Get the minimum distance to a food pellet
+        min_food_distance = min([manhattanDistance(pacman_position, food) for food in food_list])
+
+        # Sum the distances of all non-scared ghosts
+        sum_ghost_distances = sum([manhattanDistance(pacman_position, ghost_state.getPosition()) for ghost_state in ghost_states if ghost_state.scaredTimer == 0])
+
+        # Consider the distance to the closest capsule
+        if capsules:
+            min_capsule_distance = min([manhattanDistance(pacman_position, capsule) for capsule in capsules])
+        else:
+            min_capsule_distance = 0
+
+        return min_food_distance - 0.5 * sum_ghost_distances + 5 * min_capsule_distance  # Updated weights and added capsule consideration
+
+    def aStarSearch(self, gameState, costFn, heuristicFn):
+        start_state = gameState.getPacmanPosition()
+        visited = set([start_state])
+        actions = []
+        priority_queue = [(0, start_state, actions)]
+
+        while priority_queue:
+            priority, current_state, actions = priority_queue.pop(0)
+            if costFn(gameState) > 0:
+                return actions
+
+            for action in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
+                successor_state = gameState.generatePacmanSuccessor(action)
+                if successor_state and successor_state.getPacmanPosition() not in visited:
+                    visited.add(successor_state.getPacmanPosition())
+                    g = len(actions) + 1
+                    h = heuristicFn(successor_state.getPacmanPosition())
+                    f = g + h
+                    priority_queue.append((f, successor_state.getPacmanPosition(), actions + [action]))
+
+            priority_queue = sorted(priority_queue, key=lambda x: x[0])
+
+        return []
+
+    def getAction(self, gameState):
+        pacman_position = gameState.getPacmanPosition()
+        food_list = gameState.getFood().asList()
+        capsules = gameState.getCapsules()
+        ghost_states = gameState.getGhostStates()
+
+        # If there are no food pellets or capsules, return STOP
+        if not food_list and not capsules:
+            return Directions.STOP
+
+        # If there are any capsules, try to eat them
+        if capsules:
+            capsule_distance, capsule_position = min([(manhattanDistance(pacman_position, capsule), capsule) for capsule in capsules])
+            if capsule_distance <= 5:
+                search_result = self.aStarSearch(gameState, lambda x: 1, lambda x: max(0, manhattanDistance(x, capsule_position)))
+                if search_result:
+                    return search_result[0]
+
+        # Otherwise, try to eat the closest food pellet
+        food_distance, food_position = min([(manhattanDistance(pacman_position, food), food) for food in food_list])
+        search_result = self.aStarSearch(gameState, lambda x: 1, lambda x: self.newHeuristic(x, food_list, ghost_states, capsules))
+        if search_result:
+            return search_result[0]
+
+        # If all else fails, try to find a safe position to move
+        legal_actions = gameState.getLegalActions(0)
+        max_score = float('-inf')
+        best_action = None
+
+        for action in legal_actions:
+            successor_state = gameState.generatePacmanSuccessor(action)
+            if successor_state:
+                score = self.evaluationFunction(successor_state)
+                if score > max_score:
+                    max_score = score
+                    best_action = action
+
+        # If the agent is stuck, clear the visited_positions set to encourage exploration
+        if best_action is None or gameState.getPacmanPosition() == gameState.generatePacmanSuccessor(best_action).getPacmanPosition():
+            self.visited_positions.clear()
+            best_action = choice(legal_actions)
+
+        # Update visited_positions set
+        new_position = gameState.generatePacmanSuccessor(best_action).getPacmanPosition()
+        self.visited_positions.add(new_position)
+
+        return best_action
