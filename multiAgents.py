@@ -323,3 +323,45 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
                 bestAction = action
             alpha = max(alpha, bestValue)
         return bestAction
+
+class ExpectimaxAgent(MultiAgentSearchAgent):
+    """
+    Your expectimax agent
+    """
+
+    def getAction(self, gameState: GameState):
+        """
+        Returns the expectimax action using self.depth and self.evaluationFunction
+        """
+        def expectimax(state, agentIndex, depth, alpha, beta):
+            if depth == 0 or state.isWin() or state.isLose():
+                return betterEvaluationFunction(state), None
+
+            actions = state.getLegalActions(agentIndex)
+            nextAgent = (agentIndex + 1) % state.getNumAgents()
+
+            if agentIndex == 0:  # Pacman's turn (maximizing agent)
+                bestScore = -float('inf')
+                bestAction = None
+                for action in actions:
+                    successor = state.generateSuccessor(agentIndex, action)
+                    score, _ = expectimax(successor, nextAgent, depth, alpha, beta)
+                    if score > bestScore:
+                        bestScore = score
+                        bestAction = action
+                    alpha = max(alpha, bestScore)
+                    if alpha >= beta:
+                        break  # prune remaining nodes
+                return bestScore, bestAction
+            else:  # Ghost's turn (expectimax agent)
+                expectedScore = 0
+                for action in actions:
+                    successor = state.generateSuccessor(agentIndex, action)
+                    score, _ = expectimax(successor, nextAgent, depth - 1, alpha, beta)
+                    expectedScore += score
+                expectedScore /= len(actions)
+                return expectedScore, None
+
+        _, bestAction = expectimax(gameState, 0, self.depth, -float('inf'), float('inf'))  # Use alpha-beta pruning
+
+        return bestAction
